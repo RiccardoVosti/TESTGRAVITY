@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Artemis Program - Level 6: Final Evaluation</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
+    <style>
+        @font-face { font-family: 'NbpInforma'; src: url('font/NbpInformaFivesix-2dXW.ttf') format('truetype'); }
+        body { margin: 0; padding: 0; background-color: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'NbpInforma', sans-serif; }
+        #ui-wrapper { position: relative; width: 100vw; height: 100vh; background: #000; }
+        
+        #nasa-ui {
+            position: absolute; top: 20px; right: 20px; width: 280px;
+            background: rgba(0, 0, 0, 0.95); border: 2px solid #fff; 
+            padding: 20px; z-index: 1000;
+        }
+        .stepper-container { position: relative; z-index: 3; display: flex; flex-direction: column; gap: 20px; }
+        .step { position: relative; display: flex; align-items: center; color: #fff; font-size: 14px; text-transform: uppercase; font-weight: bold; }
+        .step-dot { width: 18px; height: 18px; background: #000; border: 2px solid #fff; margin-right: 15px; flex-shrink: 0; }
+        .step.completed .step-dot { background: #fff; }
+        .step.active .step-dot { background: #fff; transform: scale(1.1); box-shadow: 0 0 10px #fff; }
+
+        #dialogue-box {
+            position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
+            width: 800px; height: 160px; background: #000; border: 2px solid #fff; 
+            display: none; align-items: center; padding: 0 25px; box-sizing: border-box; z-index: 1000; 
+        }
+        #profile-img-container { width: 100px; height: 100px; border: 2px solid #fff; margin-right: 25px; overflow: hidden; flex-shrink: 0; display: flex; justify-content: center; align-items: center; }
+        #avatar-img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+        #text-container { color: #fff; font-size: 22px; flex-grow: 1; border-left: 2px solid #fff; padding-left: 20px; }
+        .choice-container { display: flex; gap: 20px; margin-top: 15px; }
+        .choice-btn { background: #000; border: 1px solid #fff; color: #fff; padding: 8px 20px; cursor: pointer; font-family: 'NbpInforma'; font-size: 16px; }
+        .choice-btn:hover { background: #fff; color: #000; }
+
+        #quiz-console {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 2000; display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            color: #fff; border: 10px solid #fff; box-sizing: border-box;
+        }
+        #close-quiz { position: absolute; top: 30px; right: 40px; font-size: 40px; cursor: pointer; color: #fff; }
+        .quiz-option {
+            background: #000; border: 2px solid #fff; color: #fff;
+            padding: 15px; margin: 10px; cursor: pointer; width: 450px;
+            font-family: 'NbpInforma'; font-size: 20px; transition: 0.2s;
+        }
+        .quiz-option:hover { background: #fff; color: #000; }
+
+        #fade-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 9999; display: flex; justify-content: center; align-items: center; pointer-events: none; transition: opacity 1s; }
+    </style>
+</head>
+
+<body>
+    <audio id="bg-music" src="sound/test.mp3" loop></audio>
+
+    <div id="fade-overlay"><div style="color:#fff; font-size:40px; font-family:'NbpInforma'">FINAL EVALUATION</div></div>
+
+    <div id="quiz-console">
+        <div id="close-quiz" onclick="closeExam()">×</div>
+        <div style="font-size: 18px; position: absolute; top: 30px; left: 40px;">NASA KNOWLEDGE ASSESSMENT SYSTEM v1.0</div>
+        <p id="quiz-question" style="font-size: 28px; text-align: center; max-width: 80%;">LOADING QUESTION...</p>
+        <div id="quiz-options"></div>
+        <div id="quiz-feedback" style="margin-top: 20px; font-size: 24px; height: 30px;"></div>
+    </div>
+
+    <div id="ui-wrapper">
+        <div id="nasa-ui">
+            <div style="text-align: center; color:#fff; font-size:16px; font-weight: bold; border-bottom: 2px solid #fff; padding-bottom: 10px;">ARTEMIS PROGRAM</div>
+            <div id="stepper-container" class="stepper-container" style="margin-top: 20px;"></div>
+        </div>
+
+        <div id="dialogue-box">
+            <div id="profile-img-container"><img id="avatar-img" src="Personaggi_oggetti/Scienziato_faccia1.png"></div>
+            <div id="text-container">
+                <strong style="color:#fff;">DR. ARIS</strong><br>
+                <span id="dialogue-content"></span>
+                <div id="choice-box" class="choice-container" style="display: none;">
+                    <button class="choice-btn" onclick="handleChoice(true)">YES, START TEST</button>
+                    <button class="choice-btn" onclick="handleChoice(false)">NOT YET</button>
+                </div>
+            </div>
+        </div>
+        <div id="game-container"></div>
+    </div>
+
+    <script>
+        // --- GESTIONE AUDIO NUOVA TRACCIA ---
+        window.addEventListener('DOMContentLoaded', () => {
+            const bgMusic = document.getElementById('bg-music');
+            
+            // Verifichiamo se stiamo passando a una traccia nuova
+            if (sessionStorage.getItem('currentTrack') !== 'test') {
+                sessionStorage.setItem('currentTrack', 'test');
+                sessionStorage.setItem('musicTime', '0'); // Resetta il timer per la nuova canzone
+            }
+
+            // Imposta il tempo salvato (sarà 0 al primo avvio del livello, ma manterrà il punto se aggiorni la pagina)
+            bgMusic.currentTime = parseFloat(sessionStorage.getItem('musicTime') || 0);
+
+            // Prova l'autoplay
+            let playPromise = bgMusic.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.log("Il browser ha bloccato l'audio. Riparto al primo tasto premuto!");
+                    const forceAudioPlay = () => {
+                        bgMusic.play();
+                        sessionStorage.setItem('musicPlaying', 'true');
+                        document.removeEventListener('click', forceAudioPlay);
+                        document.removeEventListener('keydown', forceAudioPlay);
+                    };
+                    document.addEventListener('click', forceAudioPlay);
+                    document.addEventListener('keydown', forceAudioPlay);
+                });
+            } else {
+                sessionStorage.setItem('musicPlaying', 'true');
+            }
+            
+            // Salva il tempo esatto prima di cambiare livello o aggiornare
+            window.addEventListener('beforeunload', () => {
+                sessionStorage.setItem('musicTime', bgMusic.currentTime);
+            });
+        });
+
+        const missions = [
+            { title: "Drop Tower", status: "completed" },
+            { title: "Zero Gravity", status: "completed" },
+            { title: "N.B.L. Lab", status: "completed" },
+            { title: "Vacuum Chamber", status: "completed" },
+            { title: "Centrifuge", status: "completed" },
+            { title: "Final Exam", status: "active" }
+        ];
+
+        const quizData = [
+            { q: "How high is the NASA Drop Tower?", a: "100 meters", options: ["50 meters", "100 meters", "150 meters"] },
+            { q: "What is the nickname of the Zero-G aircraft?", a: "Vomit comet", options: ["Vomit comet", "Sky-dive", "Moon-bus"] },
+            { q: "How deep is the N.B.L. pool?", a: "12 meters", options: ["10 meters", "12 meters", "20 meters"] },
+            { q: "Which mission dropped hammer/feather on the Moon?", a: "Apollo 15", options: ["Apollo 11", "Apollo 13", "Apollo 15"] },
+            { q: "G-LOC stands for G-force induced loss of...?", a: "Consciousness", options: ["Vision", "Consciousness", "Oxygen"] }
+        ];
+
+        const config = {
+            type: Phaser.AUTO, parent: 'game-container', width: window.innerWidth, height: window.innerHeight,
+            backgroundColor: '#000', pixelArt: true,
+            physics: { default: 'arcade', arcade: { gravity: { y: 2000 } } },
+            scene: { preload: preload, create: create, update: update }
+        };
+
+        const game = new Phaser.Game(config);
+        let player, npc, portalEnd, platforms, jumpSound;
+        let isDialogOpen = false, dialogueIndex = 0, currentQuiz = 0, quizActive = false, examPassed = false;
+        let dialogueText = [
+            "Excellent work getting here, Recruit.",
+            "Theoretical knowledge is as vital as physical training.",
+            "Are you ready to initiate the terminal assessment?"
+        ];
+
+        function preload() {
+            // CARICAMENTO SFONDO
+            this.load.image('sfondo', 'Personaggi_oggetti/test_sfondo.png');
+
+            this.load.image('astro1', 'Personaggi_oggetti/astronauta_neutro1.png');
+            this.load.image('astro2', 'Personaggi_oggetti/astronauta_neutro2.png');
+            this.load.image('walk1', 'Personaggi_oggetti/astronauta_camminata1.png');
+            this.load.image('walk2', 'Personaggi_oggetti/astronauta_camminata2.png');
+            this.load.image('salto1', 'Personaggi_oggetti/astronauta_salto1.png');
+            this.load.image('scien1', 'Personaggi_oggetti/Scienziato_neutro1.png');
+            this.load.image('scien2', 'Personaggi_oggetti/Scienziato_neutro2.png');
+            this.load.image('porta', 'Personaggi_oggetti/porta.png');
+            this.load.audio('jump_sound', 'sound/jump.wav');
+        }
+
+        function create() {
+            const WORLD_WIDTH = 2000; 
+            const WORLD_HEIGHT = 600; 
+            const FLOOR_Y = 550;
+            this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+            
+            if (this.cache.audio.exists('jump_sound')) jumpSound = this.sound.add('jump_sound');
+
+            // --- SFONDO: NON STRETCHATO E APPOGGIATO SUL PAVIMENTO ---
+            let bg = this.add.image(WORLD_WIDTH / 2, FLOOR_Y, 'sfondo');
+            bg.setOrigin(0.5, 1); // L'origine in basso (1) lo fa poggiare esattamente su FLOOR_Y
+            
+            // Calcolo proporzionale per coprire tutta l'area senza deformare
+            let scaleX = WORLD_WIDTH / bg.width;
+            let scaleY = FLOOR_Y / bg.height;
+            let scale = Math.max(scaleX, scaleY);
+            bg.setScale(scale).setDepth(-1);
+
+            // --- PAVIMENTO ---
+            platforms = this.physics.add.staticGroup();
+            platforms.add(this.add.rectangle(1000, FLOOR_Y + 20, 2000, 40, 0x333333).setDepth(1));
+
+            this.anims.create({ key: 'astro_idle', frames: [{key:'astro1'}, {key:'astro2'}], frameRate: 4, repeat: -1 });
+            this.anims.create({ key: 'astro_walk', frames: [{key:'walk1'}, {key:'walk2'}], frameRate: 10, repeat: -1 });
+            this.anims.create({ key: 'scien_idle', frames: [{key:'scien1'}, {key:'scien2'}], frameRate: 3, repeat: -1 });
+
+            // --- PORTE (ENTRAMBE GRIGIE) ---
+            this.add.sprite(150, FLOOR_Y, 'porta').setScale(5).setOrigin(0.5, 1).setDepth(2).setTint(0x555555);
+            portalEnd = this.physics.add.sprite(1850, FLOOR_Y, 'porta').setScale(5).setOrigin(0.5, 1).setDepth(2).setTint(0x555555); 
+            portalEnd.body.setAllowGravity(false).setImmovable(true);
+
+            npc = this.physics.add.sprite(700, FLOOR_Y, 'scien1').setScale(6).setOrigin(0.5, 1).setDepth(3);
+            npc.body.setAllowGravity(false);
+            npc.body.setImmovable(true);
+            npc.play('scien_idle');
+
+            player = this.physics.add.sprite(250, FLOOR_Y, 'astro1').setScale(5).setOrigin(0.5, 1).setDepth(4);
+            player.setCollideWorldBounds(true);
+            this.physics.add.collider(player, platforms);
+
+            this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT).startFollow(player).setZoom(1.5);
+            this.keys = this.input.keyboard.addKeys('W,A,D,E,SPACE');
+
+            const stepper = document.getElementById('stepper-container');
+            missions.forEach((m) => {
+                stepper.innerHTML += `<div class="step ${m.status}"><div class="step-dot"></div><div class="step-label">${m.title}</div></div>`;
+            });
+
+            setTimeout(() => document.getElementById('fade-overlay').style.opacity = '0', 1000);
+        }
+
+        function update() {
+            npc.setFlipX(player.x < npc.x);
+
+            if (quizActive) { 
+                player.setVelocityX(0); 
+                player.play('astro_idle', true); 
+                return; 
+            }
+
+            if (isDialogOpen) {
+                player.setVelocityX(0);
+                player.play('astro_idle', true);
+                if (Phaser.Input.Keyboard.JustDown(this.keys.E) && dialogueIndex < dialogueText.length - 1) {
+                    dialogueIndex++;
+                    document.getElementById('dialogue-content').innerText = dialogueText[dialogueIndex];
+                    if (dialogueIndex === dialogueText.length - 1) document.getElementById('choice-box').style.display = 'flex';
+                }
+                return;
+            }
+
+            const onGround = player.body.touching.down;
+
+            if (this.keys.A.isDown) {
+                player.setVelocityX(-350); player.setFlipX(true);
+                if (onGround) player.play('astro_walk', true);
+            } else if (this.keys.D.isDown) {
+                player.setVelocityX(350); player.setFlipX(false);
+                if (onGround) player.play('astro_walk', true);
+            } else {
+                player.setVelocityX(0);
+                if (onGround) player.play('astro_idle', true);
+            }
+
+            if ((this.keys.W.isDown || this.keys.SPACE.isDown) && onGround) {
+                player.setVelocityY(-850);
+                player.setTexture('salto1');
+                if (jumpSound) jumpSound.play();
+            }
+
+            // --- TRIGGER DIALOGO ---
+            if (Phaser.Math.Distance.Between(player.x, player.y, npc.x, npc.y) < 120 && dialogueIndex === 0 && !isDialogOpen) {
+                isDialogOpen = true;
+                player.setVelocityX(0); 
+                document.getElementById('dialogue-box').style.display = 'flex';
+                document.getElementById('dialogue-content').innerText = dialogueText[0];
+            }
+
+            if (examPassed && player.x > 1800) {
+                document.getElementById('fade-overlay').style.opacity = '1';
+                setTimeout(() => { window.location.href = 'livello7.html'; }, 1000);
+            }
+        }
+
+        window.handleChoice = function(start) {
+            document.getElementById('choice-box').style.display = 'none';
+            document.getElementById('dialogue-box').style.display = 'none';
+            isDialogOpen = false;
+            if (start) {
+                startExam();
+            } else {
+                dialogueIndex = 0;
+                player.x = npc.x - 130; 
+            }
+        };
+
+        window.startExam = function() {
+            quizActive = true;
+            document.getElementById('quiz-console').style.display = 'flex';
+            currentQuiz = 0;
+            loadQuestion();
+        };
+
+        window.closeExam = function() {
+            document.getElementById('quiz-console').style.display = 'none';
+            quizActive = false;
+            dialogueIndex = 0;
+            player.x = npc.x - 130;
+        };
+
+        function loadQuestion() {
+            const data = quizData[currentQuiz];
+            document.getElementById('quiz-feedback').innerText = "";
+            document.getElementById('quiz-question').innerText = `QUESTION ${currentQuiz + 1}: ${data.q}`;
+            const optionsDiv = document.getElementById('quiz-options');
+            optionsDiv.innerHTML = '';
+            data.options.forEach(opt => {
+                const btn = document.createElement('button'); btn.className = 'quiz-option'; btn.innerText = opt;
+                btn.onclick = () => checkAnswer(opt, btn); optionsDiv.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(ans, btn) {
+            const correct = quizData[currentQuiz].a;
+            const feedback = document.getElementById('quiz-feedback');
+            document.querySelectorAll('.quiz-option').forEach(b => b.style.pointerEvents = 'none');
+
+            if (ans === correct) {
+                btn.style.background = "#fff"; btn.style.color = "#000"; feedback.innerText = "CORRECT";
+                setTimeout(() => {
+                    currentQuiz++;
+                    if (currentQuiz < quizData.length) loadQuestion();
+                    else finishExam();
+                }, 1500);
+            } else {
+                btn.style.border = "2px dashed #fff"; feedback.innerText = "WRONG - REBOOTING TEST";
+                setTimeout(() => { currentQuiz = 0; loadQuestion(); }, 2000);
+            }
+        }
+
+        function finishExam() {
+            examPassed = true;
+            document.getElementById('quiz-console').innerHTML = "<h1>EXAM PASSED</h1><p>NASA CLEARANCE GRANTED. THE MOON AWAITS.</p>";
+            setTimeout(() => {
+                document.getElementById('quiz-console').style.display = 'none';
+                quizActive = false;
+                portalEnd.setTint(0xffffff);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

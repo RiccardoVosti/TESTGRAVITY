@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Artemis Program - N.B.L. Lab</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
+    <style>
+        @font-face { font-family: 'NbpInforma'; src: url('font/NbpInformaFivesix-2dXW.ttf') format('truetype'); }
+        body { margin: 0; padding: 0; background-color: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'NbpInforma', sans-serif; }
+        #ui-wrapper { position: relative; width: 100vw; height: 100vh; background: #000; }
+        
+        #nasa-ui {
+            position: absolute; top: 20px; right: 20px; width: 280px;
+            background: rgba(0, 0, 0, 0.95); border: 2px solid #fff; 
+            padding: 20px; border-radius: 0; 
+            box-shadow: none; z-index: 1000;
+        }
+
+        .step-wrapper { position: relative; margin-top: 20px; }
+        .step-line { position: absolute; top: 15px; bottom: 15px; left: 13px; width: 2px; background: #fff; z-index: 1; }
+        .step-line-fill { position: absolute; top: 15px; left: 13px; width: 2px; background: #fff; z-index: 2; transition: height 0.6s ease-in-out; }
+        .stepper-container { position: relative; z-index: 3; display: flex; flex-direction: column; gap: 20px; }
+        .step { position: relative; display: flex; align-items: center; }
+        .step-dot { width: 20px; height: 20px; background: #000; border: 2px solid #fff; transition: all 0.4s; flex-shrink: 0; }
+        .step-label { margin-left: 15px; font-size: 15px; color: #fff; font-weight: bold; text-transform: uppercase; }
+
+        .step.completed .step-dot { background: #fff; border-color: #fff; } 
+        .step.completed .step-label { color: #fff; }
+        .step.active .step-dot { background: #fff; border-color: #fff; transform: scale(1.1); } 
+        .step.active .step-label { color: #fff; text-shadow: none; }
+        .step.locked .step-dot { background: #000; border-color: #888; } 
+        .step.locked .step-label { color: #888; }
+
+        .step.golden .step-dot { width: 28px; height: 28px; border-width: 3px; border-color: #fff; background: #000; margin-left: -4px; }
+        .step.golden .step-label { color: #fff; font-size: 16px; }
+
+        #dialogue-box {
+            position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
+            width: 800px; height: 180px; background: rgba(0, 0, 0, 0.98); border: 2px solid #fff; 
+            display: none; align-items: center; padding: 0 30px; box-sizing: border-box; z-index: 1000; 
+        }
+
+        #profile-img-container { width: 120px; height: 120px; background: #111; border: 2px solid #fff; margin-right: 30px; flex-shrink: 0; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        #avatar-img { width: 170%; image-rendering: pixelated; }
+        #text-container { color: #fff; font-size: 26px; flex-grow: 1; border-left: 2px solid #fff; padding-left: 25px; line-height: 1.3; position: relative; }
+        #press-e-hint { position: absolute; bottom: -25px; right: 0; font-size: 14px; color: #fff; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        #game-container { width: 100%; height: 100%; }
+        canvas { image-rendering: pixelated; }
+
+        #fade-overlay {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: #000; z-index: 9999; 
+            display: flex; justify-content: center; align-items: center;
+            opacity: 1; transition: opacity 1s ease; 
+            pointer-events: none;
+        }
+        
+        #level-title-text {
+            color: #fff; font-size: 40px; font-family: 'NbpInforma', sans-serif; text-align: center; line-height: 1.2;
+            transition: opacity 0.5s ease;
+        }
+    </style>
+</head>
+
+<body>
+    <audio id="bg-music" src="sound/lv3.mp3" loop></audio>
+
+    <div id="fade-overlay">
+        <div id="level-title-text">LEVEL 3<br>N.B.L. LAB</div>
+    </div>
+
+    <div id="ui-wrapper">
+        <div id="nasa-ui">
+            <div style="text-align: center; color:#fff; font-size:16px; text-transform: uppercase; font-weight: bold; letter-spacing: 2px; border-bottom: 2px solid #fff; padding-bottom: 10px;">
+                ARTEMIS PROGRAM
+            </div>
+            <div class="step-wrapper">
+                <div class="step-line"></div>
+                <div id="step-line-fill" class="step-line-fill" style="height: 0%;"></div>
+                <div id="stepper-container" class="stepper-container"></div>
+            </div>
+        </div>
+
+        <div id="dialogue-box">
+            <div id="profile-img-container"><img id="avatar-img" src="Personaggi_oggetti/Scienziato_faccia1.png"></div>
+            <div id="text-container">
+                <strong id="npc-name-tag" style="color: #fff; text-transform: uppercase; font-size: 22px;">Dr. Aris</strong><br>
+                <span id="dialogue-content" style="color: #fff;"></span>
+                <div id="press-e-hint">Press [E] to continue</div>
+            </div>
+        </div>
+        <div id="game-container"></div>
+    </div>
+
+    <script>
+        // --- GESTIONE AUDIO ---
+        window.addEventListener('DOMContentLoaded', () => {
+            const bgMusic = document.getElementById('bg-music');
+            
+            if (sessionStorage.getItem('currentTrack') !== 'lv3') {
+                sessionStorage.setItem('currentTrack', 'lv3');
+                sessionStorage.setItem('musicTime', '0'); 
+            }
+
+            bgMusic.currentTime = parseFloat(sessionStorage.getItem('musicTime') || 0);
+
+            let playPromise = bgMusic.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.log("Autoplay bloccato. Riparto al primo tasto premuto!");
+                    const forceAudioPlay = () => {
+                        bgMusic.play();
+                        sessionStorage.setItem('musicPlaying', 'true');
+                        document.removeEventListener('click', forceAudioPlay);
+                        document.removeEventListener('keydown', forceAudioPlay);
+                    };
+                    document.addEventListener('click', forceAudioPlay);
+                    document.addEventListener('keydown', forceAudioPlay);
+                });
+            } else {
+                sessionStorage.setItem('musicPlaying', 'true');
+            }
+            
+            window.addEventListener('beforeunload', () => {
+                sessionStorage.setItem('musicTime', bgMusic.currentTime);
+            });
+        });
+
+        // --- LOGICA DI GIOCO ---
+        const playerName = localStorage.getItem('astronautName') || "Recruit";
+
+        const missions = [
+            { id: 0, title: "Drop Tower", status: "completed" },
+            { id: 1, title: "Zero Gravity", status: "completed" },
+            { id: 2, title: "N.B.L. Lab", status: "active" },
+            { id: 3, title: "Vacuum Chamber", status: "locked" },
+            { id: 4, title: "Centrifuge", status: "locked" },
+            { id: 5, title: "Moon Journey", status: "locked" }
+        ];
+
+        let hasTalkedToScientist = false;
+        let isDialogOpen = false;
+        let isPoolCompleted = false;
+        let isTransitioning = false;
+        
+        let isCameraLocked = true;
+        let currentBounds = { h: 600 };
+
+        let currentDialogueArray = [];
+        let dialogueIndex = 0;
+        let onDialogueComplete = null;
+
+        function updateUI() {
+            const stepper = document.getElementById('stepper-container');
+            const progressFill = document.getElementById('step-line-fill');
+            if (!stepper || !progressFill) return;
+
+            stepper.innerHTML = '';
+            let activeIndex = missions.findIndex(m => m.status === 'active');
+            if (activeIndex === -1) activeIndex = missions.length - 1;
+
+            let segments = missions.length - 1;
+            let fillPercentage = (activeIndex / segments) * 100;
+            progressFill.style.height = `${fillPercentage}%`;
+
+            missions.forEach((m) => {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = `step ${m.status}`;
+                if (m.id === 5) stepDiv.classList.add('golden');
+
+                const dot = document.createElement('div');
+                dot.className = 'step-dot';
+
+                const label = document.createElement('div');
+                label.className = 'step-label';
+                label.innerHTML = m.title;
+
+                stepDiv.appendChild(dot);
+                stepDiv.appendChild(label);
+                stepper.appendChild(stepDiv);
+            });
+        }
+
+        const WORLD_WIDTH = 3000;
+        const WORLD_HEIGHT = 1200; 
+        const FLOOR_Y = 550; 
+
+        const SETTINGS = {
+            playerScale: 5, npcScale: 6, npcX: 600, playerStartX: 250,
+            gravity: 2000, walkSpeed: 380, jumpForce: -850,
+            minZoom: 1.2, maxZoom: 2.0, initialZoom: 1.5, zoomLerp: 0.1 
+        };
+
+        const config = {
+            type: Phaser.AUTO, parent: 'game-container',
+            width: window.innerWidth, height: window.innerHeight,
+            backgroundColor: '#050505', pixelArt: true,
+            physics: { default: 'arcade', arcade: { gravity: { y: SETTINGS.gravity } } },
+            scene: { preload: preload, create: create, update: update }
+        };
+
+        const game = new Phaser.Game(config);
+        let player, npc, keys, interactKey, portalStart, portalEnd, jumpSound;
+
+        function preload() {
+            this.load.image('bg_pool', './Personaggi_oggetti/piscina.png');
+            this.load.image('astro1', 'Personaggi_oggetti/astronauta_neutro1.png');
+            this.load.image('astro2', 'Personaggi_oggetti/astronauta_neutro2.png');
+            this.load.image('walk1', 'Personaggi_oggetti/astronauta_camminata1.png');
+            this.load.image('walk2', 'Personaggi_oggetti/astronauta_camminata2.png');
+            this.load.image('scienziato1', 'Personaggi_oggetti/Scienziato_neutro1.png');
+            this.load.image('scienziato2', 'Personaggi_oggetti/Scienziato_neutro2.png');
+            this.load.image('porta', 'Personaggi_oggetti/porta.png');
+            this.load.audio('jump_sound', 'sound/jump.wav');
+        }
+
+        function create() {
+            updateUI();
+            this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+            jumpSound = this.sound.add('jump_sound');
+
+            let background = this.add.image(0, FLOOR_Y, 'bg_pool').setOrigin(0, 1).setDepth(-1);
+            background.setScale(10);
+            background.setScrollFactor(1);
+
+            let platforms = this.physics.add.staticGroup();
+
+            // Piattaforme visibili (sopra l'acqua)
+            platforms.add(this.add.rectangle(400, FLOOR_Y + 20, 800, 40, 0x333333).setDepth(1));
+            platforms.add(this.add.rectangle(2600, FLOOR_Y + 20, 800, 40, 0x333333).setDepth(1));
+
+            // Zona acqua: GRIGIO CHIARO TRASPARENTE
+            let poolZone = this.add.rectangle(1500, 850, 1400, 600, 0xaaaaaa, 0.4).setDepth(5);
+            
+            // --- EFFETTO BOLLE NELL'ACQUA ---
+            let bubbleGraphics = this.make.graphics({x: 0, y: 0, add: false});
+            bubbleGraphics.fillStyle(0xffffff, 0.6); 
+            bubbleGraphics.fillCircle(3, 3, 3);
+            bubbleGraphics.generateTexture('bubble', 6, 6);
+
+            this.add.particles(0, 0, 'bubble', {
+                x: { min: 820, max: 2180 }, // Tutta la larghezza della piscina
+                y: 1150, // Partono dal fondo
+                lifespan: { min: 3000, max: 6000 },
+                speedY: { min: -50, max: -120 }, // Vanno verso l'alto
+                speedX: { min: -15, max: 15 }, // Leggera oscillazione laterale
+                scale: { start: 0.5, end: 1.5 },
+                quantity: 2,
+                alpha: { start: 0.8, end: 0 }, // Svaniscono arrivando in superficie
+                blendMode: 'ADD'
+            }).setDepth(4); 
+            
+            // Muri invisibili della piscina
+            let leftWall = this.add.rectangle(780, 850, 40, 600, 0x000000, 0);
+            let rightWall = this.add.rectangle(2220, 850, 40, 600, 0x000000, 0);
+            let bottomWall = this.add.rectangle(1500, 1150, 1400, 40, 0x000000, 0); 
+
+            platforms.add(this.physics.add.existing(leftWall, true));
+            platforms.add(this.physics.add.existing(rightWall, true));
+            platforms.add(this.physics.add.existing(bottomWall, true));
+
+            // --- OSTACOLI NELLA PISCINA BIANCHI ---
+            let ostacoli = this.physics.add.staticGroup();
+            
+            // Ostacolo 1 (Dall'alto verso il basso. Molto alto per bloccare il salto fuori dall'acqua)
+            let ostacolo1 = this.add.rectangle(1100, 650, 80, 600, 0xffffff).setDepth(2);
+            // Ostacolo 2 (Dal fondo verso l'alto)
+            let ostacolo2 = this.add.rectangle(1500, 1050, 80, 500, 0xffffff).setDepth(2);
+            // Ostacolo 3 (Dall'alto verso il basso. Molto alto per bloccare il salto fuori dall'acqua)
+            let ostacolo3 = this.add.rectangle(1900, 650, 80, 600, 0xffffff).setDepth(2);
+
+            ostacoli.add(this.physics.add.existing(ostacolo1, true));
+            ostacoli.add(this.physics.add.existing(ostacolo2, true));
+            ostacoli.add(this.physics.add.existing(ostacolo3, true));
+
+            // Porte 
+            portalStart = this.physics.add.sprite(150, FLOOR_Y, 'porta').setOrigin(0.5, 1).setScale(5).setDepth(2).setTint(0x555555);
+            portalEnd = this.physics.add.sprite(2850, FLOOR_Y, 'porta').setOrigin(0.5, 1).setScale(5).setDepth(2).setTint(0x555555);
+            portalStart.body.setAllowGravity(false); portalEnd.body.setAllowGravity(false);
+
+            // NPC e Player 
+            npc = this.physics.add.sprite(SETTINGS.npcX, FLOOR_Y, 'scienziato1').setScale(SETTINGS.npcScale).setOrigin(0.5, 1).setDepth(3);
+            player = this.physics.add.sprite(SETTINGS.playerStartX, FLOOR_Y, 'astro1').setScale(SETTINGS.playerScale).setOrigin(0.5, 1).setDepth(4);
+
+            this.physics.add.collider(player, platforms);
+            this.physics.add.collider(player, ostacoli); // Collisione con gli ostacoli
+            this.physics.add.collider(npc, platforms);
+
+            player.setCollideWorldBounds(true);
+            npc.setImmovable(true); npc.body.setAllowGravity(false);
+
+            // Animazioni
+            this.anims.create({ key: 'astro_idle', frames: [{ key: 'astro1' }, { key: 'astro2' }], frameRate: 4, repeat: -1 });
+            this.anims.create({ key: 'astro_walk', frames: [{ key: 'walk1' }, { key: 'walk2' }], frameRate: 10, repeat: -1 });
+            this.anims.create({ key: 'scien_idle', frames: [{ key: 'scienziato1' }, { key: 'scienziato2' }], frameRate: 3, repeat: -1 });
+            npc.play('scien_idle');
+
+            this.cameras.main.setBounds(0, 0, WORLD_WIDTH, 600);
+            this.cameras.main.startFollow(player, true, 0.1, 0.1).setZoom(SETTINGS.initialZoom);
+
+            keys = this.input.keyboard.addKeys('W,A,D,SPACE');
+            interactKey = this.input.keyboard.addKey('E');
+            this.interactPrompt = this.add.text(0, 0, "", { fontSize: '20px', fill: '#ffffff', fontFamily: 'NbpInforma' }).setOrigin(0.5).setVisible(false).setDepth(10);
+
+            setTimeout(() => {
+                document.getElementById('fade-overlay').style.opacity = '0';
+            }, 1000);
+        }
+
+        function triggerMainDialogue() {
+            startDialogue([
+                `Stop right there, ${playerName.toUpperCase()}! Be careful not to fall into the tank yet.`,
+                `Welcome to the N.B.L., the Neutral Buoyancy Lab.`,
+                `This massive pool is 12 meters deep and filled with ultra-purified water.`,
+                `Here we simulate Extravehicular Activities (EVA) or spacewalks. The water mimics the feeling of weightlessness.`,
+                `But beware: your suit is incredibly heavy! If you stop moving, you'll sink to the bottom.`,
+                `Dive in, navigate around the white modules, and repeatedly press [SPACE] or [W] to swim upward.`,
+                `Swim to the other side to complete the test.`
+            ], () => { hasTalkedToScientist = true; });
+        }
+
+        function startDialogue(phrases, callback = null) {
+            currentDialogueArray = phrases;
+            dialogueIndex = 0;
+            isDialogOpen = true;
+            onDialogueComplete = callback;
+
+            if (player) {
+                player.setVelocityX(0);
+                player.play('astro_idle', true);
+            }
+
+            document.getElementById('dialogue-content').innerText = currentDialogueArray[dialogueIndex];
+            document.getElementById('dialogue-box').style.display = 'flex';
+            setTimeout(() => document.getElementById('dialogue-box').style.opacity = '1', 10);
+        }
+
+        function update() {
+            npc.setFlipX(player.x < npc.x);
+
+            if (isTransitioning) return;
+
+            if (isDialogOpen) {
+                player.setVelocityX(0);
+                player.play('astro_idle', true);
+
+                if (Phaser.Input.Keyboard.JustDown(interactKey)) {
+                    dialogueIndex++;
+                    if (dialogueIndex < currentDialogueArray.length) {
+                        document.getElementById('dialogue-content').innerText = currentDialogueArray[dialogueIndex];
+                    } else {
+                        isDialogOpen = false;
+                        document.getElementById('dialogue-box').style.opacity = '0';
+                        setTimeout(() => document.getElementById('dialogue-box').style.display = 'none', 200);
+                        if (onDialogueComplete) {
+                            onDialogueComplete();
+                            onDialogueComplete = null;
+                        }
+                    }
+                }
+                return;
+            }
+
+            if (!hasTalkedToScientist && player.x > npc.x - 60) {
+                player.setX(npc.x - 70);
+                player.setVelocityX(0);
+                triggerMainDialogue();
+            }
+
+            let inWater = player.x > 780 && player.x < 2220 && player.y > (FLOOR_Y + 10);
+
+            // Gestione telecamera dinamica
+            if (inWater && isCameraLocked) {
+                isCameraLocked = false;
+                this.tweens.killTweensOf(currentBounds);
+                this.tweens.add({
+                    targets: currentBounds,
+                    h: WORLD_HEIGHT,
+                    duration: 1200,
+                    ease: 'Sine.easeInOut',
+                    onUpdate: () => {
+                        this.cameras.main.setBounds(0, 0, WORLD_WIDTH, currentBounds.h);
+                    }
+                });
+            } else if (!inWater && !isCameraLocked) {
+                isCameraLocked = true;
+                this.tweens.killTweensOf(currentBounds);
+                this.tweens.add({
+                    targets: currentBounds,
+                    h: 600,
+                    duration: 1200,
+                    ease: 'Sine.easeInOut',
+                    onUpdate: () => {
+                        this.cameras.main.setBounds(0, 0, WORLD_WIDTH, currentBounds.h);
+                    }
+                });
+            }
+
+            if (inWater) {
+                player.body.setAllowGravity(false); 
+                player.body.setDragX(800); 
+
+                // Effetto "tuta pesante" che fa affondare lentamente
+                player.body.velocity.y += 8;
+                if (player.body.velocity.y > 250) player.body.velocity.y = 250; 
+
+                let swimSpeed = 250;
+                if (keys.A.isDown) {
+                    player.setVelocityX(-swimSpeed); player.setFlipX(true); player.play('astro_walk', true);
+                } else if (keys.D.isDown) {
+                    player.setVelocityX(swimSpeed); player.setFlipX(false); player.play('astro_walk', true);
+                } else {
+                    player.play('astro_idle', true);
+                }
+
+                if (Phaser.Input.Keyboard.JustDown(keys.W) || Phaser.Input.Keyboard.JustDown(keys.SPACE)) {
+                    player.setVelocityY(-400);
+                    jumpSound.play({ volume: 0.5, rate: 0.8 }); 
+                }
+
+            } else {
+                player.body.setAllowGravity(true);
+                player.body.setDragX(0);
+
+                if (keys.A.isDown) {
+                    player.setVelocityX(-SETTINGS.walkSpeed); player.setFlipX(true); player.play('astro_walk', true);
+                } else if (keys.D.isDown) {
+                    player.setVelocityX(SETTINGS.walkSpeed); player.setFlipX(false); player.play('astro_walk', true);
+                } else {
+                    player.setVelocityX(0); player.play('astro_idle', true);
+                }
+
+                if ((Phaser.Input.Keyboard.JustDown(keys.W) || Phaser.Input.Keyboard.JustDown(keys.SPACE)) && player.body.touching.down) {
+                    player.setVelocityY(SETTINGS.jumpForce);
+                    jumpSound.play({ volume: 1, rate: 1 });
+                }
+            }
+
+            if (player.x > 2250 && !isPoolCompleted) {
+                isPoolCompleted = true;
+                missions[2].status = "completed";
+                updateUI();
+                startDialogue([
+                    `Great job, ${playerName}!`,
+                    `You crossed the entire N.B.L. tank while navigating the modules.`,
+                    `The test is passed. Proceed to the door on the right.`
+                ]);
+            }
+
+            this.interactPrompt.setVisible(false);
+            let distNpc = Phaser.Math.Distance.Between(player.x, player.y, npc.x, npc.y);
+            let distDoor = Phaser.Math.Distance.Between(player.x, player.y, portalEnd.x, portalEnd.y);
+
+            if (distNpc < 200) {
+                this.interactPrompt.setPosition(npc.x, npc.y - 220).setText("[E] TALK").setVisible(true);
+                if (Phaser.Input.Keyboard.JustDown(interactKey) && !isDialogOpen) {
+                    if (!hasTalkedToScientist) {
+                        triggerMainDialogue();
+                    } else {
+                        startDialogue([ `Dive in and swim to the right. Use [SPACE] with the right rhythm to navigate the modules!` ]);
+                    }
+                }
+            } else if (distDoor < 150) {
+                if (!isPoolCompleted) {
+                    this.interactPrompt.setPosition(portalEnd.x, portalEnd.y - 250).setText("LOCKED").setVisible(true);
+                } else {
+                    if (distDoor < 50 && !isTransitioning) {
+                        isTransitioning = true;
+                        player.setVelocity(0, 0);
+                        player.play('astro_idle', true);
+                        
+                        document.getElementById('level-title-text').style.opacity = '0'; 
+                        const overlay = document.getElementById('fade-overlay');
+                        overlay.style.opacity = '1'; 
+                        
+                        setTimeout(() => { 
+                            window.location.href = 'livello4.html'; 
+                        }, 1000);
+                    } else if (!isTransitioning) {
+                        this.interactPrompt.setPosition(portalEnd.x, portalEnd.y - 250).setText("ENTER").setVisible(true);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

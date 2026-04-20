@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Artemis Program - Zero-G Simulation (Vomit Comet)</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
+    <style>
+        @font-face { font-family: 'NbpInforma'; src: url('font/NbpInformaFivesix-2dXW.ttf') format('truetype'); }
+        body { margin: 0; padding: 0; background-color: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'NbpInforma', sans-serif; }
+        #ui-wrapper { position: relative; width: 100vw; height: 100vh; background: #000; }
+        
+        /* --- HUD TOP LEFT WITH PARABOLA DIAGRAM --- */
+        #parabola-ui {
+            position: absolute; top: 20px; left: 20px; width: 360px;
+            background: rgba(0, 0, 0, 0.95); border: 2px solid #fff; 
+            padding: 20px; box-sizing: border-box; z-index: 1000;
+        }
+
+        #ui-title {
+            color: #fff; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;
+            border-bottom: 2px solid #fff; padding-bottom: 8px; margin-bottom: 15px; text-align: center;
+        }
+
+        .status-row {
+            display: flex; justify-content: space-between; margin-bottom: 10px; color: #fff; font-size: 16px;
+        }
+
+        #phase-text { font-weight: bold; transition: color 0.3s; }
+        
+        /* --- PARABOLIC DIAGRAM STYLES --- */
+        #parabola-diagram {
+            position: relative; width: 100%; height: 130px; margin-top: 15px;
+        }
+
+        #mini-aereo {
+            position: absolute; width: 45px; height: auto;
+            transform: translate(-50%, -50%); 
+            z-index: 10; image-rendering: pixelated;
+        }
+
+        .phase-label {
+            position: absolute; font-size: 12px; font-weight: bold;
+        }
+
+        /* --- VIGNETTE STYLES --- */
+        .vignette-left {
+            position: absolute; left: 0; top: 0; height: 100vh; width: 300px;
+            background: linear-gradient(to right, black, transparent);
+            pointer-events: none; z-index: 10;
+        }
+
+        .vignette-right {
+            position: absolute; right: 0; top: 0; height: 100vh; width: 300px;
+            background: linear-gradient(to left, black, transparent);
+            pointer-events: none; z-index: 10;
+        }
+
+        #game-container { width: 100%; height: 100%; }
+        canvas { image-rendering: pixelated; }
+
+        /* --- BLACK FADE OVERLAY --- */
+        #fade-overlay {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: #000; z-index: 9999; 
+            pointer-events: none; opacity: 1; transition: opacity 1.5s ease;
+        }
+    </style>
+</head>
+
+<body>
+    <audio id="bg-music" src="sound/lv2.mp3" loop></audio>
+
+    <div id="fade-overlay"></div>
+
+    <div id="ui-wrapper">
+        <div class="vignette-left"></div>
+        <div class="vignette-right"></div>
+
+        <div id="parabola-ui">
+            <div id="ui-title">ZERO-G SIMULATOR</div>
+            <div class="status-row">
+                <span>STATUS:</span>
+                <span id="phase-text">PREPARING (1G)</span>
+            </div>
+            <div class="status-row">
+                <span>REMAINING TIME:</span>
+                <span id="time-text">22s</span>
+            </div>
+            
+            <div id="parabola-diagram">
+                <svg width="320" height="130" viewBox="0 0 320 130" style="position:absolute; top:0; left:0;">
+                    <path d="M 20 110 Q 160 -90 300 110" fill="transparent" stroke="#555" stroke-width="2" stroke-dasharray="5,5"/>
+                    <path d="M 67 44 Q 160 -45 253 44" fill="transparent" stroke="#00ffff" stroke-width="4"/>
+                </svg>
+                <span class="phase-label" style="bottom: 0; left: 0; color: #ff4444;">CLIMB 2G</span>
+                <span class="phase-label" style="top: 10px; left: 150px; transform: translateX(-50%); color: #00ffff;">0G</span>
+                <span class="phase-label" style="bottom: 0; right: 0; color: #ff4444;">DESCENT 2G</span>
+                
+                <img id="mini-aereo" src="Personaggi_oggetti/aereo.png" alt="plane">
+            </div>
+        </div>
+        <div id="game-container"></div>
+    </div>
+
+    <script>
+        // --- GESTIONE AUDIO CONTINUO ---
+        window.addEventListener('DOMContentLoaded', () => {
+            const bgMusic = document.getElementById('bg-music');
+            
+            if (sessionStorage.getItem('musicPlaying') === 'true') {
+                // Riprende la traccia lv2.mp3 esattamente da dove si era interrotta
+                bgMusic.currentTime = parseFloat(sessionStorage.getItem('musicTime') || 0);
+                
+                let playPromise = bgMusic.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.log("Il browser ha bloccato l'audio. Riparto al primo tasto premuto!");
+                        
+                        const forceAudioPlay = () => {
+                            bgMusic.play();
+                            document.removeEventListener('click', forceAudioPlay);
+                            document.removeEventListener('keydown', forceAudioPlay);
+                        };
+                        
+                        document.addEventListener('click', forceAudioPlay);
+                        document.addEventListener('keydown', forceAudioPlay);
+                    });
+                }
+            }
+            
+            // Salva il tempo esatto prima di cambiare livello (andando verso livello2complete)
+            window.addEventListener('beforeunload', () => {
+                sessionStorage.setItem('musicTime', bgMusic.currentTime);
+            });
+        });
+
+        const WORLD_WIDTH = window.innerWidth;
+        const WORLD_HEIGHT = 800; 
+
+        const config = {
+            type: Phaser.AUTO, parent: 'game-container',
+            width: window.innerWidth, height: window.innerHeight,
+            backgroundColor: '#111111', pixelArt: true,
+            physics: { default: 'arcade', arcade: { gravity: { y: 2000 } } },
+            scene: { preload: preload, create: create, update: update }
+        };
+
+        const game = new Phaser.Game(config);
+        
+        let player, keys, jumpSound;
+        let boxGroup; 
+        let startTime;
+        let totalDuration = 22000; 
+        let isSimulationRunning = false;
+        let obloList = [];
+        let numOblos = 0;
+        let boxesJumped = false; 
+
+        function preload() {
+            this.load.image('astro1', 'Personaggi_oggetti/astronauta_neutro1.png');
+            this.load.image('astro2', 'Personaggi_oggetti/astronauta_neutro2.png');
+            this.load.image('walk1', 'Personaggi_oggetti/astronauta_camminata1.png');
+            this.load.image('walk2', 'Personaggi_oggetti/astronauta_camminata2.png');
+            this.load.image('oblo', 'Personaggi_oggetti/oblo.png'); 
+            this.load.image('scatola', 'Personaggi_oggetti/scatola.png');
+            this.load.audio('jump_sound', 'sound/jump.wav');
+        }
+
+        function create() {
+            const floorY = WORLD_HEIGHT - 50; 
+            const floorTop = floorY - 10; // Calcola l'altezza ESATTA del bordo superiore del pavimento
+
+            this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+            jumpSound = this.sound.add('jump_sound');
+
+            // --- BACKGROUND OBLOS ---
+            numOblos = Math.ceil(WORLD_WIDTH / 350) + 1; 
+            let obloY = WORLD_HEIGHT / 2 - 50;
+
+            for(let i = 0; i < numOblos; i++) {
+                let obloX = i * 350;
+                let oblo = this.add.sprite(obloX, obloY, 'oblo').setScale(4).setAlpha(0.6); 
+                oblo.baseX = obloX;
+                oblo.baseY = obloY;
+                obloList.push(oblo);
+            }
+
+            let platforms = this.physics.add.staticGroup();
+            platforms.add(this.add.rectangle(WORLD_WIDTH / 2, floorY + 10, WORLD_WIDTH, 40, 0x444444)); 
+            
+            let soffitto = this.add.rectangle(WORLD_WIDTH / 2, 20, WORLD_WIDTH, 40, 0x222222);
+            this.physics.add.existing(soffitto, true);
+            platforms.add(soffitto);
+
+            // --- CREAZIONE SCATOLE ---
+            boxGroup = this.physics.add.group({ collideWorldBounds: true });
+            const BOX_SIZE = 60; 
+            const PYRAMID_BASE = 4; 
+
+            // Funzione per creare una piramide perfetta
+            function createPyramid(group, scene, baseWidth, startX, boxSize) {
+              const gap = 1; // 1 pixel di gap per non farle compenetrare alla nascita
+              const yStart = floorTop - (boxSize / 2); // Le fa posare ESATTAMENTE sul pavimento
+              let currentY = yStart;
+              
+              for (let row = 0; row < baseWidth; row++) {
+                const rowWidth = baseWidth - row;
+                const rowXStart = startX - (rowWidth - 1) * (boxSize + gap) / 2;
+                
+                for (let col = 0; col < rowWidth; col++) {
+                  const box = scene.physics.add.sprite(rowXStart + col * (boxSize + gap), currentY, 'scatola');
+                  
+                  box.setDisplaySize(boxSize, boxSize);
+                  box.refreshBody(); // FONDAMENTALE: adatta l'hitbox fisico alla grafica scalata!
+                  
+                  box.body.setDrag(500); // Abbastanza attrito per fermarle quando le spingi
+                  box.body.setBounce(0.1); // Rimbalzo quasi nullo per impilarle stabilmente
+                  box.body.setCollideWorldBounds(true);
+                  
+                  group.add(box);
+                }
+                currentY -= (boxSize + gap); // Sali di un livello
+              }
+            }
+
+            // Crea le due piramidi
+            createPyramid(boxGroup, this, PYRAMID_BASE, WORLD_WIDTH / 6, BOX_SIZE);
+            createPyramid(boxGroup, this, PYRAMID_BASE, WORLD_WIDTH * 5 / 6, BOX_SIZE);
+
+            player = this.physics.add.sprite(WORLD_WIDTH / 2, floorTop, 'astro1').setScale(5).setOrigin(0.5, 1);
+            this.physics.add.collider(player, platforms);
+            player.setCollideWorldBounds(true).setBounce(0.1); // Abbassato un po' il rimbalzo del player per non scivolare via dalle scatole
+
+            // --- AGGIUNTA COLLISIONI SCATOLE ---
+            this.physics.add.collider(boxGroup, platforms); 
+            this.physics.add.collider(player, boxGroup);    
+            this.physics.add.collider(boxGroup, boxGroup);   
+
+            this.anims.create({ key: 'astro_idle', frames: [{ key: 'astro1' }, { key: 'astro2' }], frameRate: 4, repeat: -1 });
+            this.anims.create({ key: 'astro_walk', frames: [{ key: 'walk1' }, { key: 'walk2' }], frameRate: 10, repeat: -1 });
+
+            this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+            this.cameras.main.centerOn(WORLD_WIDTH/2, WORLD_HEIGHT/2);
+
+            keys = this.input.keyboard.addKeys('W,A,D,SPACE');
+
+            setTimeout(() => {
+                document.getElementById('fade-overlay').style.opacity = '0';
+                startTime = this.time.now;
+                isSimulationRunning = true;
+                boxesJumped = false; 
+            }, 1000);
+        }
+
+        function update(time, delta) {
+            if (keys.A.isDown) {
+                player.setVelocityX(-380); player.setFlipX(true); player.play('astro_walk', true);
+            } else if (keys.D.isDown) {
+                player.setVelocityX(380); player.setFlipX(false); player.play('astro_walk', true);
+            } else {
+                player.setVelocityX(0); player.play('astro_idle', true);
+            }
+
+            let shakingIntensity = 1; 
+
+            if (isSimulationRunning) {
+                let elapsed = time - startTime;
+                let p = elapsed / totalDuration; 
+                if (p > 1) p = 1;
+                
+                let timeRemaining = Math.max(Math.ceil((totalDuration - elapsed) / 1000), 0);
+                document.getElementById('time-text').innerText = `${timeRemaining}s`;
+
+                // 1. MINI-PLANE POSITION UPDATE
+                let P0_x = 20, P0_y = 110;
+                let P1_x = 160, P1_y = -90;
+                let P2_x = 300, P2_y = 110;
+
+                let x = Math.pow(1-p, 2)*P0_x + 2*(1-p)*p*P1_x + Math.pow(p, 2)*P2_x;
+                let y = Math.pow(1-p, 2)*P0_y + 2*(1-p)*p*P1_y + Math.pow(p, 2)*P2_y;
+
+                let dx = 2*(1-p)*(P1_x - P0_x) + 2*p*(P2_x - P1_x);
+                let dy = 2*(1-p)*(P1_y - P0_y) + 2*p*(P2_y - P1_y);
+                let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+                let miniAereo = document.getElementById('mini-aereo');
+                miniAereo.style.left = `${x}px`;
+                miniAereo.style.top = `${y}px`;
+                miniAereo.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+
+                // 2. GRAVITY PHASES AND SHAKING
+                let phaseTextDOM = document.getElementById('phase-text');
+
+                if (elapsed < 4000) {
+                    phaseTextDOM.innerText = "STEEP CLIMB (2G)";
+                    phaseTextDOM.style.color = "#ff4444"; 
+                    this.physics.world.gravity.y = 4500; 
+                    handleJump(-850);
+                    shakingIntensity = 6; 
+                    if(Math.random() > 0.85) this.cameras.main.shake(100, 0.003); 
+                    boxesJumped = false; 
+                } 
+                else if (elapsed < 18000) {
+                    phaseTextDOM.innerText = "MICROGRAVITY (0G)";
+                    phaseTextDOM.style.color = "#00ffff"; 
+                    this.physics.world.gravity.y = 80; 
+                    handleJump(-500); 
+                    shakingIntensity = 0.5; 
+
+                    // --- SALTO INIZIALE DELLE SCATOLE IN 0G ---
+                    if (!boxesJumped) {
+                        boxGroup.getChildren().forEach(child => {
+                            child.body.setVelocityY(-(350 + Math.random() * 100)); 
+                            child.body.setVelocityX((Math.random() - 0.5) * 100); 
+                        });
+                        boxesJumped = true; 
+                    }
+                } 
+                else if (elapsed < 22000) {
+                    phaseTextDOM.innerText = "DESCENT (2G)";
+                    phaseTextDOM.style.color = "#ff4444";
+                    this.physics.world.gravity.y = 4500;
+                    handleJump(-850);
+                    shakingIntensity = 8; 
+                    if(Math.random() > 0.8) this.cameras.main.shake(100, 0.004); 
+                    boxesJumped = false; 
+                } 
+                else {
+                    isSimulationRunning = false;
+                    phaseTextDOM.innerText = "COMPLETED";
+                    phaseTextDOM.style.color = "#ffffff";
+                    this.physics.world.gravity.y = 2000; 
+                    shakingIntensity = 0; 
+                    
+                    player.setVelocityX(0).play('astro_idle', true);
+                    localStorage.setItem('zeroG_completed', 'true');
+                    
+                    document.getElementById('fade-overlay').style.opacity = '1';
+                    setTimeout(() => { 
+                        window.location.href = 'livello2complete.html'; 
+                    }, 1500);
+                    boxesJumped = false; 
+                }
+            }
+
+            if (shakingIntensity > 0) {
+                obloList.forEach(oblo => {
+                    let shakeX = (Math.random() - 0.5) * shakingIntensity;
+                    let shakeY = (Math.random() - 0.5) * shakingIntensity;
+                    oblo.x = oblo.baseX + shakeX;
+                    oblo.y = oblo.baseY + shakeY;
+                });
+            } else {
+                 obloList.forEach(oblo => {
+                    oblo.x = oblo.baseX;
+                    oblo.y = oblo.baseY;
+                });
+            }
+        }
+
+        function handleJump(jumpForce) {
+            let jumpPressed = Phaser.Input.Keyboard.JustDown(keys.W) || Phaser.Input.Keyboard.JustDown(keys.SPACE);
+            if (jumpPressed && player.body.touching.down) {
+                player.setVelocityY(jumpForce);
+                jumpSound.play(); 
+            }
+        }
+    </script>
+</body>
+</html>
