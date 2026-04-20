@@ -1,438 +1,334 @@
 <!DOCTYPE html>
 <html lang="it">
-
 <head>
     <meta charset="UTF-8">
-    <title>Astronaut RPG - NASA Training</title>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
+    <title>Artemis Program - Inizio Missione</title>
     <style>
-        @font-face {
-            font-family: 'NbpInforma';
-            src: url('font/NbpInformaFivesix-2dXW.ttf') format('truetype');
+        @font-face { 
+            font-family: 'NbpInforma'; 
+            src: url('font/NbpInformaFivesix-2dXW.ttf') format('truetype'); 
         }
 
-        body {
+        body, html {
             margin: 0;
             padding: 0;
-            background-color: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-            font-family: 'NbpInforma', sans-serif;
-        }
-
-        #ui-wrapper {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            background: #000;
-        }
-
-        #nasa-ui {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 300px;
-            background: rgba(0, 0, 0, 0.95);
-            border: 2px solid #fff;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            box-shadow: -5px 5px 0px rgba(0, 255, 255, 0.2);
-            z-index: 1000;
-            transition: height 0.2s ease-out, width 0.2s ease-out;
-            overflow: hidden;
-        }
-
-        #ui-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        #nasa-ui.closed {
-            height: 25px;
-            width: 220px;
-        }
-
-        #nasa-ui.closed #ui-content {
-            display: none;
-        }
-
-        #toggle-ui {
-            color: #fff;
-            font-size: 24px;
-            line-height: 1;
-            width: 20px;
-            text-align: center;
-        }
-
-        #toggle-ui:hover {
-            color: #00ffff;
-        }
-
-        .mission-item {
-            font-size: 16px;
-            margin-bottom: 5px;
-        }
-
-        .locked {
-            color: #444;
-        }
-
-        .active {
-            color: #fff;
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
-        }
-
-        .completed {
-            color: #00ffff;
-            text-shadow: 0 0 5px #00ffff;
-            opacity: 0.8;
-        }
-
-        #dialogue-box {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 600px;
-            height: 140px;
-            background: rgba(0, 0, 0, 0.98);
-            border: 2px solid #fff;
-            display: none;
-            align-items: center;
-            padding: 0 25px;
-            box-sizing: border-box;
-            z-index: 100;
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-        }
-
-        #profile-img-container {
-            width: 80px;
-            height: 80px;
-            background: #111;
-            border: 2px solid #fff;
-            margin-right: 20px;
-            flex-shrink: 0;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        #avatar-img {
-            width: 170%;
-            image-rendering: pixelated;
-        }
-
-        #text-container {
-            color: #eee;
-            font-size: 20px;
-            flex-grow: 1;
-            border-left: 1px solid #333;
-            padding-left: 20px;
-            font-family: 'NbpInforma', sans-serif;
-        }
-
-        #game-container {
             width: 100%;
             height: 100%;
+            background-color: #000;
+            font-family: 'NbpInforma', sans-serif;
+            overflow: hidden; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        canvas {
-            image-rendering: pixelated;
+        /* --- SFONDO PARTICELLARE --- */
+        #particle-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none; 
+        }
+
+        /* --- PULSANTE MUSICA (In alto a destra) --- */
+        #music-toggle {
+            position: absolute;
+            top: 30px;
+            right: 40px;
+            z-index: 100;
+            background: transparent;
+            color: #fff;
+            border: 2px solid #fff;
+            font-family: 'NbpInforma', sans-serif;
+            font-size: 24px;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%; /* Tasto rotondo */
+        }
+
+        #music-toggle:hover {
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+        }
+
+        /* --- CONTENITORE UI (Sopra il canvas) --- */
+        #ui-container {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            width: 100%;
+            max-width: 1200px; 
+            padding: 20px;
+        }
+
+        /* --- IMMAGINE TITOLO (5 Volte più Grande) --- */
+        #game-title {
+            width: 800px; 
+            height: auto;
+            margin-bottom: 0px; 
+            filter: drop-shadow(0px 0px 15px rgba(255, 255, 255, 0.3)); 
+            image-rendering: pixelated; 
+        }
+
+        /* --- CAMPO INSERIMENTO NOME --- */
+        #name-input {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #fff;
+            color: #fff;
+            font-family: 'NbpInforma', sans-serif;
+            font-size: 24px;
+            padding: 15px 20px;
+            width: 350px;
+            text-align: center;
+            text-transform: uppercase;
+            outline: none;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+
+        #name-input::placeholder {
+            color: #666;
+        }
+
+        #name-input:focus {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+
+        /* --- BOTTONE INIZIA --- */
+        #start-btn {
+            background-color: #fff;
+            color: #000;
+            border: 2px solid #fff;
+            font-family: 'NbpInforma', sans-serif;
+            font-size: 24px;
+            font-weight: bold;
+            padding: 15px 40px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #start-btn:hover {
+            background-color: #000;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+        }
+
+        #start-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* --- OVERLAY PER TRANSIZIONE NERA --- */
+        #fade-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 1s ease;
         }
     </style>
 </head>
-
 <body>
-    <div id="ui-wrapper">
-        <div id="nasa-ui">
-            <div id="ui-header" onclick="toggleNasaMenu()">
-                <div style="color:#fff; font-size:16px; text-transform: uppercase;">SISTEMA ADDESTRAMENTO</div>
-                <div id="toggle-ui">−</div>
-            </div>
-            <div id="ui-content">
-                <div style="color:#00ffff; font-size:14px; margin-top: 5px;">STATUS: <span id="mission-count">0/5</span>
-                </div>
-                <div id="progress-bar-container" style="display:flex; gap:4px; height:10px; margin-top:5px;"></div>
-                <ul id="mission-list" style="margin-top:10px; padding:0; list-style:none;"></ul>
-            </div>
-        </div>
 
-        <div id="dialogue-box">
-            <div id="profile-img-container"><img id="avatar-img" src="Personaggi_oggetti/Scienziato_faccia1.png"></div>
-            <div id="text-container">
-                <strong id="npc-name-tag" style="color: #00ffff; text-transform: uppercase;"></strong><br>
-                <span id="dialogue-content" style="color: #bbb;"></span>
-            </div>
-        </div>
-        <div id="game-container"></div>
+    <audio id="bg-music" src="sound/bg_music.mp3" loop></audio>
+
+    <button id="music-toggle" title="Attiva/Disattiva Musica">🎵</button>
+
+    <canvas id="particle-canvas"></canvas>
+
+    <div id="ui-container">
+        <img id="game-title" src="Personaggi_oggetti/titolo.png" alt="Programma Artemis">
+        
+        <input type="text" id="name-input" placeholder="INSERISCI IL TUO NOME" maxlength="12" autocomplete="off">
+        
+        <button id="start-btn">INIZIA ESPERIMENTI</button>
     </div>
 
+    <div id="fade-overlay"></div>
+
     <script>
-        // --- NUOVO: Scelta del nome ---
-        const playerName = localStorage.getItem('astronautName') || "Recluta";
+        // --- LOGICA EFFETTO PARTICELLE ---
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        let particlesArray = [];
 
-        const missions = [{
-                id: 0,
-                title: "INIZIALIZZAZIONE",
-                status: "active"
-            },
-            {
-                id: 1,
-                title: "TEST PROPULSIONE EST",
-                status: "locked"
-            },
-            {
-                id: 2,
-                title: "CALIBRAZIONE GRAVITÀ",
-                status: "locked"
-            },
-            {
-                id: 3,
-                title: "VERIFICA SISTEMI",
-                status: "locked"
-            },
-            {
-                id: 4,
-                title: "SEQUENZA DI LANCIO",
-                status: "locked"
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', function() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initParticles();
+        });
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 3 + 1; 
+                this.speedY = Math.random() * 1 + 0.1; 
+                this.opacity = Math.random() * 0.5 + 0.2;
             }
-        ];
 
-        let currentMissionIndex = 0;
-
-        function updateUI() {
-            const list = document.getElementById('mission-list');
-            const bar = document.getElementById('progress-bar-container');
-            if (!list || !bar) return;
-            list.innerHTML = '';
-            bar.innerHTML = '';
-            missions.forEach((m) => {
-                const li = document.createElement('li');
-                li.className = `mission-item ${m.status}`;
-                li.innerHTML = `${m.status === 'completed' ? '▶' : '▷'} ${m.title}`;
-                list.appendChild(li);
-                const segment = document.createElement('div');
-                segment.style.flex = "1";
-                segment.style.border = "1px solid #333";
-                segment.style.background = m.status === 'completed' ? '#00ffff' : (m.status === 'active' ?
-                    '#fff' : '#111');
-                bar.appendChild(segment);
-            });
-            document.getElementById('mission-count').innerText =
-                `${missions.filter(m => m.status === 'completed').length}/5`;
-        }
-
-        function completeMission(id) {
-            if (missions[id].status === 'active') {
-                missions[id].status = 'completed';
-                if (missions[id + 1]) missions[id + 1].status = 'active';
-                currentMissionIndex++;
-                updateUI();
-                const menu = document.getElementById('nasa-ui');
-                if (menu.classList.contains('closed')) toggleNasaMenu();
-            }
-        }
-
-        function toggleNasaMenu() {
-            const menu = document.getElementById('nasa-ui');
-            const toggleBtn = document.getElementById('toggle-ui');
-            const isClosed = menu.classList.toggle('closed');
-            toggleBtn.innerText = isClosed ? '+' : '−';
-        }
-
-        const WORLD_WIDTH = 2000;
-        const WORLD_HEIGHT = 2000;
-        const SETTINGS = {
-            playerScale: 5,
-            npcScale: 6,
-            npcX: 450, // SPOSTATO: Poco dopo la porta iniziale (che è a 100)
-            playerStartX: 100,
-            gravity: 2000,
-            walkSpeed: 380,
-            jumpForce: -850,
-            minZoom: 1.5,
-            maxZoom: 2.2,
-            initialZoom: 1.8,
-            zoomLerp: 0.1
-        };
-
-        const config = {
-            type: Phaser.AUTO,
-            parent: 'game-container',
-            width: window.innerWidth,
-            height: window.innerHeight,
-            backgroundColor: '#050505',
-            pixelArt: true,
-            physics: {
-                default: 'arcade',
-                arcade: {
-                    gravity: { y: SETTINGS.gravity }
+            update() {
+                this.y -= this.speedY; 
+                if (this.y < 0 - this.size) {
+                    this.y = canvas.height + this.size;
+                    this.x = Math.random() * canvas.width;
+                    this.opacity = Math.random() * 0.5 + 0.2;
                 }
-            },
-            scene: {
-                preload: preload,
-                create: create,
-                update: update
-            }
-        };
-
-        const game = new Phaser.Game(config);
-        let player, npc, keys, interactKey, floorGraphics, portalStart, portalEnd, jumpSound;
-        let isDialogOpen = false,
-            targetZoom = SETTINGS.initialZoom,
-            jumpsDone = 0;
-
-        function preload() {
-            this.load.image('astro1', 'Personaggi_oggetti/astronauta_neutro1.png');
-            this.load.image('astro2', 'Personaggi_oggetti/astronauta_neutro2.png');
-            this.load.image('walk1', 'Personaggi_oggetti/astronauta_camminata1.png');
-            this.load.image('walk2', 'Personaggi_oggetti/astronauta_camminata2.png');
-            for (let i = 1; i <= 4; i++) this.load.image(`salto${i}`, `Personaggi_oggetti/astronauta_salto${i}.png`);
-            this.load.image('scienziato1', 'Personaggi_oggetti/Scienziato_neutro1.png');
-            this.load.image('scienziato2', 'Personaggi_oggetti/Scienziato_neutro2.png');
-            this.load.image('porta', 'Personaggi_oggetti/porta.png');
-            this.load.audio('jump_sound', 'sound/jump.wav');
-        }
-
-        function create() {
-            updateUI();
-            const floorY = WORLD_HEIGHT - 120;
-            this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-
-            jumpSound = this.sound.add('jump_sound');
-            floorGraphics = this.add.graphics().setDepth(1);
-            let platforms = this.physics.add.staticGroup();
-            platforms.add(this.add.rectangle(WORLD_WIDTH / 2, floorY + 2, WORLD_WIDTH, 10, 0x000, 0));
-
-            portalStart = this.physics.add.sprite(100, floorY, 'porta').setOrigin(0.5, 1).setDepth(2).setScale(5);
-            portalStart.body.setAllowGravity(false).setImmovable(true);
-
-            portalEnd = this.physics.add.sprite(1900, floorY, 'porta').setOrigin(0.5, 1).setDepth(2).setScale(5);
-            portalEnd.body.setAllowGravity(false).setImmovable(true);
-
-            npc = this.physics.add.sprite(SETTINGS.npcX, floorY, 'scienziato1').setScale(SETTINGS.npcScale).setOrigin(0.5, 1).setDepth(3);
-            player = this.physics.add.sprite(SETTINGS.playerStartX, floorY, 'astro1').setScale(SETTINGS.playerScale).setOrigin(0.5, 1).setDepth(4);
-
-            this.physics.add.collider(player, platforms);
-            this.physics.add.collider(npc, platforms);
-            player.setCollideWorldBounds(true);
-
-            this.anims.create({ key: 'astro_idle', frames: [{ key: 'astro1' }, { key: 'astro2' }], frameRate: 4, repeat: -1 });
-            this.anims.create({ key: 'astro_walk', frames: [{ key: 'walk1' }, { key: 'walk2' }], frameRate: 10, repeat: -1 });
-            this.anims.create({ key: 'astro_jump', frames: [{ key: 'salto1' }, { key: 'salto2' }, { key: 'salto3' }], frameRate: 10, repeat: 0 });
-            this.anims.create({ key: 'scien_idle', frames: [{ key: 'scienziato1' }, { key: 'scienziato2' }], frameRate: 3, repeat: -1 });
-            npc.play('scien_idle');
-
-            this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-            this.cameras.main.startFollow(player, true, 0.1, 0.1);
-
-            keys = this.input.keyboard.addKeys('W,A,D,SPACE');
-            interactKey = this.input.keyboard.addKey('E');
-            this.interactPrompt = this.add.text(0, 0, "[E] PARLA", { fontSize: '20px', fill: '#00ffff', fontFamily: 'NbpInforma' }).setOrigin(0.5).setVisible(false).setDepth(10);
-            
-            this.input.on('wheel', (p, go, dX, dY) => {
-                targetZoom = Phaser.Math.Clamp(targetZoom - dY * 0.001, SETTINGS.minZoom, SETTINGS.maxZoom);
-            });
-
-            this.physics.add.overlap(player, portalEnd, () => {
-                if (currentMissionIndex === 4) {
-                    this.cameras.main.fadeOut(2000, 255, 255, 255);
-                    this.cameras.main.once('camerafadeoutcomplete', () => { location.reload(); });
-                }
-            });
-        }
-
-        // Funzione per mostrare il dialogo
-        function showDialogue(text) {
-            isDialogOpen = true;
-            const db = document.getElementById('dialogue-content');
-            document.getElementById('npc-name-tag').innerText = "DOTT. ARIS";
-            db.innerText = text;
-            document.getElementById('dialogue-box').style.display = 'flex';
-            setTimeout(() => document.getElementById('dialogue-box').style.opacity = '1', 10);
-        }
-
-        function update(time) {
-            const floorY = WORLD_HEIGHT - 120;
-            floorGraphics.clear();
-            floorGraphics.lineStyle(4, 0x333333, 1);
-            floorGraphics.lineBetween(0, floorY, WORLD_WIDTH, floorY);
-            this.cameras.main.zoom = Phaser.Math.Linear(this.cameras.main.zoom, targetZoom, SETTINGS.zoomLerp);
-
-            if (currentMissionIndex === 4) portalEnd.clearTint().setTint(0x00ffff);
-            
-            // --- MODIFICATO: BLOCCO NPC SE NON CI PARLI ---
-            // Se provi a superare l'NPC (x > 450) e la missione 0 non è finita, ti ferma
-            if (currentMissionIndex === 0 && player.x > npc.x - 50) {
-                player.setX(npc.x - 51); // Ti respinge un po' indietro
-                player.setVelocityX(0);
-                showDialogue(`'ASPETTA A PASSARE ${playerName.toUpperCase()}, DEVI CAPIRE PRIMA COME FUNZIONA. PARLAMI [E].'`);
             }
 
-            if (currentMissionIndex === 1 && player.x > 1800) completeMission(1);
-
-            npc.setFlipX(player.x < npc.x);
-            const onGround = player.body.touching.down;
-            this.interactPrompt.setPosition(npc.x, npc.y - 220).setVisible(!isDialogOpen && Phaser.Math.Distance.Between(player.x, player.y, npc.x, npc.y) < 250);
-
-            if (isDialogOpen) {
-                player.setVelocityX(0);
-                player.play('astro_idle', true);
-                if (Phaser.Input.Keyboard.JustDown(interactKey)) {
-                    isDialogOpen = false;
-                    document.getElementById('dialogue-box').style.opacity = '0';
-                    setTimeout(() => document.getElementById('dialogue-box').style.display = 'none', 200);
-                }
-                return;
+            draw() {
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                ctx.fillRect(this.x, this.y, this.size, this.size); 
             }
+        }
 
-            if (onGround) {
-                if (Phaser.Input.Keyboard.JustDown(keys.W) || Phaser.Input.Keyboard.JustDown(keys.SPACE)) {
-                    player.setVelocityY(SETTINGS.jumpForce);
-                    player.play('astro_jump', true);
-                    jumpSound.play();
-                    if (currentMissionIndex === 2) {
-                        jumpsDone++;
-                        if (jumpsDone >= 3) completeMission(2);
-                    }
-                } else if (keys.A.isDown) {
-                    player.setVelocityX(-SETTINGS.walkSpeed); player.setFlipX(true); player.play('astro_walk', true);
-                } else if (keys.D.isDown) {
-                    player.setVelocityX(SETTINGS.walkSpeed); player.setFlipX(false); player.play('astro_walk', true);
-                } else {
-                    player.setVelocityX(0); player.play('astro_idle', true);
-                }
+        function initParticles() {
+            particlesArray = [];
+            let numberOfParticles = (canvas.width * canvas.height) / 5000; 
+            for (let i = 0; i < numberOfParticles; i++) {
+                particlesArray.push(new Particle());
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+                particlesArray[i].draw();
+            }
+            requestAnimationFrame(animateParticles);
+        }
+
+        initParticles();
+        animateParticles();
+
+        // --- GESTIONE AUDIO GLOBALE E PULSANTE ---
+        const bgMusic = document.getElementById('bg-music');
+        const musicToggleBtn = document.getElementById('music-toggle');
+        
+        // Controlliamo se l'utente aveva mutato la musica in sessioni precedenti
+        let isMusicMuted = sessionStorage.getItem('musicMuted') === 'true';
+
+        // Aggiorna l'icona del pulsante
+        function updateMusicIcon() {
+            if (isMusicMuted || bgMusic.paused) {
+                musicToggleBtn.innerHTML = '🔇';
             } else {
-                if (keys.A.isDown) { player.setVelocityX(-SETTINGS.walkSpeed); player.setFlipX(true); }
-                else if (keys.D.isDown) { player.setVelocityX(SETTINGS.walkSpeed); player.setFlipX(false); }
-                if (player.body.velocity.y > 0) player.setTexture('salto4');
-            }
-
-            // Interazione volontaria con E
-            if (Phaser.Input.Keyboard.JustDown(interactKey) && Phaser.Math.Distance.Between(player.x, player.y, npc.x, npc.y) < 250) {
-                if (currentMissionIndex === 0) {
-                    showDialogue(`'BENVENUTO ${playerName.toUpperCase()}. CORRI FINO AL SETTORE EST PER IL TEST DI PROPULSIONE.'`);
-                    completeMission(0);
-                } else if (currentMissionIndex === 3) {
-                    showDialogue(`'SISTEMI CALIBRATI. IL PORTALE SPAZIALE È ORA ONLINE. BUON VIAGGIO.'`);
-                    completeMission(3);
-                } else {
-                    showDialogue(`'PROCEDI CON GLI OBIETTIVI ASSEGNATI, ${playerName.toUpperCase()}.'`);
-                }
+                musicToggleBtn.innerHTML = '🎵';
             }
         }
+
+        // Funzione per far partire la musica al primissimo click sulla pagina
+        const startAudioOnInteraction = () => {
+            if (!isMusicMuted && bgMusic.paused) {
+                bgMusic.play().then(() => {
+                    sessionStorage.setItem('musicPlaying', 'true');
+                    updateMusicIcon();
+                }).catch(e => console.log("In attesa del browser...", e));
+            }
+            // Rimuoviamo il listener dopo il primo click
+            document.removeEventListener('click', startAudioOnInteraction);
+            document.removeEventListener('keydown', startAudioOnInteraction);
+        };
+
+        // Gestione del click sul pulsante Musica
+        musicToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Evita che il click sul bottone attivi "startAudioOnInteraction"
+            
+            if (bgMusic.paused) {
+                bgMusic.play();
+                isMusicMuted = false;
+                sessionStorage.setItem('musicPlaying', 'true');
+                sessionStorage.setItem('musicMuted', 'false');
+            } else {
+                bgMusic.pause();
+                isMusicMuted = true;
+                sessionStorage.setItem('musicPlaying', 'false');
+                sessionStorage.setItem('musicMuted', 'true');
+            }
+            updateMusicIcon();
+        });
+
+        // Al caricamento della pagina
+        window.addEventListener('DOMContentLoaded', () => {
+            updateMusicIcon();
+
+            // Se la musica stava suonando prima del refresh/back
+            if (sessionStorage.getItem('musicPlaying') === 'true' && !isMusicMuted) {
+                bgMusic.currentTime = parseFloat(sessionStorage.getItem('musicTime') || 0);
+                bgMusic.play().then(() => {
+                    updateMusicIcon();
+                }).catch(e => {
+                    // Se bloccato, attendiamo interazione
+                    document.addEventListener('click', startAudioOnInteraction);
+                    document.addEventListener('keydown', startAudioOnInteraction);
+                });
+            } else {
+                // Prima volta sulla pagina: aspetta che l'utente clicchi qualcosa (es. il campo nome)
+                document.addEventListener('click', startAudioOnInteraction);
+                document.addEventListener('keydown', startAudioOnInteraction);
+            }
+            
+            // Salviamo il punto esatto in cui siamo arrivati prima di cambiare pagina
+            window.addEventListener('beforeunload', () => {
+                sessionStorage.setItem('musicTime', bgMusic.currentTime);
+            });
+        });
+
+        // --- LOGICA DI GIOCO E TRANSIZIONE ---
+        const startBtn = document.getElementById('start-btn');
+        const nameInput = document.getElementById('name-input');
+        const fadeOverlay = document.getElementById('fade-overlay');
+
+        function startGame() {
+            let playerName = nameInput.value.trim();
+            if (playerName === "") {
+                playerName = "Recluta";
+            }
+
+            localStorage.setItem('astronautName', playerName);
+
+            // Assicuriamoci che i flag siano corretti prima di cambiare pagina
+            if (!bgMusic.paused) {
+                sessionStorage.setItem('musicPlaying', 'true');
+            }
+
+            fadeOverlay.style.opacity = 1;
+
+            setTimeout(() => {
+                sessionStorage.setItem('musicTime', bgMusic.currentTime);
+                window.location.href = 'livello1.html'; 
+            }, 1000);
+        }
+
+        startBtn.addEventListener('click', startGame);
+
+        nameInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                startGame();
+            }
+        });
     </script>
 </body>
-
 </html>
