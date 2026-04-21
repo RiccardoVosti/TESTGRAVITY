@@ -121,13 +121,36 @@
 
         const playerName = localStorage.getItem('astronautName') || "Recruit";
 
-        const missions = [
-            { id: 0, title: "Drop Tower", status: "completed" }, 
-            { id: 1, title: "Zero Gravity", status: "active" },  
-            { id: 2, title: "Vacuum Chamber", status: "locked" },
-            { id: 3, title: "N.B.L. Lab", status: "locked" },
-            { id: 4, title: "Centrifuge", status: "locked" },
-            { id: 5, title: "Moon Journey", status: "locked" } 
+        const missions = [{
+                id: 0,
+                title: "Drop Tower",
+                status: "completed"
+            },
+            {
+                id: 1,
+                title: "Zero Gravity",
+                status: "completed"
+            },
+            {
+                id: 2,
+                title: "N.B.L. Lab",
+                status: "locked"
+            },
+            {
+                id: 3,
+                title: "Vacuum Chamber",
+                status: "locked"
+            },
+            {
+                id: 4,
+                title: "Centrifuge",
+                status: "locked"
+            },
+            {
+                id: 5,
+                title: "Moon Journey",
+                status: "locked"
+            }
         ];
 
         let hasTalkedToScientist = false;
