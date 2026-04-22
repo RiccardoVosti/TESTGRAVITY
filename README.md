@@ -1,12 +1,12 @@
-¨SUPSI 2026  
+SUPSI 2026  
 Corso d’interaction design, CV429.01  
 Docenti: A. Gysin, G. Profeta  
 
 Progetto 1: La conquista dello spazio
 
-# Titolo progetto
+# Project Moonbound
 Autore: Riccardo Vosti \
-[Titolo progetto](https://riccardovosti.github.io/TESTGRAVITY/)
+[Project Moonbound](https://riccardovosti.github.io/TESTGRAVITY/)
 
 
 ## Introduzione e tema
@@ -15,21 +15,20 @@ Il gioco è un vero e proprio simulatore di addestramento astronautico. Sotto la
 
 
 ## Riferimenti progettuali
-Dolor sit amet consectetur adipiscing elit duis tristique. Sociis natoque penatibus et magnis dis parturient montes nascetur. Est sit amet facilisis magna. Tellus rutrum tellus pellentesque eu. Dictum sit amet justo donec enim. Aliquam malesuada bibendum arcu vitae elementum curabitur vitae. Sed faucibus turpis in eu mi bibendum neque egestas congue. Tellus in metus vulputate eu scelerisque felis imperdiet proin. Dolor magna eget est lorem ipsum dolor. Sit amet mattis vulputate enim nulla. Elit pellentesque habitant morbi tristique senectus et. Vestibulum mattis ullamcorper velit sed ullamcorper morbi tincidunt ornare massa.
+- 🕹️ **Micro-Tasking (es. *Google Doodles*, *Among Us*):** Gameplay diviso in minigiochi rapidi. Abbassa il carico cognitivo e traduce la teoria aerospaziale in pratica immediata (*learning by doing*).
+- 👾 **Pixel-Art Funzionale:** Estetica retro anni '90 scelta non solo per fascino visivo, ma per semplificare ambienti immensi (come la piscina N.B.L.) e garantire prestazioni web istantanee.
+- 🏛️ **Reward System (Museo Virtuale):** Il videogioco funge da "esca". La vera ricompensa al termine della sfida è lo sblocco di un archivio interattivo con i reali filmati storici della NASA.
 
 
 ## Design dell’interfaccia e modalità di interazione
-Il design dell'**Artemis Training Simulator** nasce dall'incrocio tra *gamification* e divulgazione scientifica, con l'obiettivo primario di abbassare la barriera d'ingresso a contenuti aerospaziali complessi.
+**Interfaccia Visiva (UI)**
+- **Terminale Sci-Fi:** Stile minimalista (bianco su nero, font pixel-art) ispirato ai monitor di controllo della NASA.
+- **Zero Distrazioni:** Layout pulito. Una *stepper bar* laterale mostra sempre i progressi e i livelli rimanenti senza ingombrare la visuale.
 
-Le scelte progettuali si basano su:
-
-- 🕹️ **Task-based Gameplay (es. *Among Us*, *Google Doodles*):** Ho strutturato l'interazione per micro-task. Dividere l'esperienza in minigiochi brevi abbassa il carico cognitivo dell'utente e mantiene alto l'engagement, trasformando subito la teoria in un'azione pratica (*learning by doing*).
-
-- 👾 **Pixel-Art Funzionale:** L'estetica guarda ai platform indie e ai retro-game anni '90. Oltre all'effetto nostalgia, è una precisa scelta di *usabilità*: semplifica visivamente ambienti enormi (come la centrifuga o la piscina N.B.L.), chiarisce l'*affordance* degli elementi interattivi e garantisce ottime performance di caricamento sul browser.
-
-- 🖥️ **Sci-Fi Minimal UI:** Per l'interfaccia utente mi sono ispirato ai veri terminali di controllo delle stazioni spaziali. Colori ad alto contrasto (bianco su nero), font squadrati e finestre modali grezze. Questo garantisce accessibilità e coerenza visiva, favorendo l'immersione dell'utente senza distrarlo dal core loop del gioco.
-
-- 🏛️ **Reward System e Museo Virtuale:** Il flusso utente è pensato come un *funnel*. Il videogioco fa da "esca" per catturare l'attenzione; una volta completata la sfida, l'utente riceve come *reward* l'accesso a un archivio interattivo in stile museo virtuale, sbloccando i veri filmati storici della NASA corrispondenti alle prove appena superate.
+**Interazione (UX)**
+- **Comandi Familiari:** Controlli standard del gaming PC (`WASD`, `Spazio`, `E`) per azzerare la curva di apprendimento.
+- **Proximity Prompts:** I comandi a schermo (es. `[E] PARLA`) appaiono in automatico solo quando il giocatore è vicino a un oggetto interattivo.
+- **Micro-Learning:** Le spiegazioni scientifiche evitano i "muri di testo". La teoria è divisa in brevi frasi passate tramite finestre di dialogo con l'NPC del gioco (Dr. Aris).
 
 
 
@@ -48,7 +47,7 @@ Le tecnologie principali includono:
 
 ## Target e contesto d’uso
 **Target: Studenti delle Scuole Medie (11-14 anni)**
-Ho scelto questa fascia d'età perché concetti complessi come la microgravità o l'attrito aerodinamico risultano spesso troppo astratti se affrontati solo sui libri. Trattandosi di nativi digitali, la *gamification* è il linguaggio più diretto per mantenere alta la loro attenzione e tradurre la teoria in pratica (*learning by doing*).
+Ho scelto questa fascia d'età perché concetti complessi come la microgravità o l'attrito aerodinamico risultano spesso troppo astratti se affrontati solo sui libri. Trattandosi di nativi digitali, la *gamification* è il linguaggio più diretto per mantenere alta la loro attenzione e tradurre la teoria in pratica.
 
 **Contesto d'Uso: Edutainment**
 L'app è *browser-based* (nessuna installazione richiesta) e si presta a diversi scenari:
@@ -56,6 +55,4 @@ L'app è *browser-based* (nessuna installazione richiesta) e si presta a diversi
 - **A casa:** Per trasformare lo studio autonomo in una sfida gratificante.
 - **Eventi STEM:** Come *exhibit* digitale per incuriosire i ragazzi durante open-day o fiere scientifiche.
 
-**Approccio Didattico**
-Il design usa il videogioco come "cavallo di Troia" per l'apprendimento. L'errore non è mai punitivo, ma diventa un *feedback* visivo che spiega le leggi della fisica (es. sbagliare il minigioco della centrifuga fa svenire il personaggio, spiegando cos'è la forza G). Questo prepara i ragazzi cognitivamente, rendendoli curiosi e pronti ad assimilare i veri filmati storici della NASA sbloccati alla fine dell'esperienza.
 
